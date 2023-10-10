@@ -1,4 +1,4 @@
-// Vulnerability Exploitation using VPtr Overwrite
+// Exploiting Vulnerability using VPtr Overwrite
 // DISCLAIMER: This code is for educational purposes only. It demonstrates
 // vulnerabilities that should NEVER be used in a production environment or
 // for malicious intent.
@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <openssl/sha.h>
+#include <iomanip>
+#include <fstream>
 
 using namespace std;
 
@@ -27,12 +29,12 @@ public:
 
     virtual void gainAccess()
     {
-        cout << "Access gained" << endl;
+        cout << "Access granted." << endl;
     }
 
     virtual void denyAccess()
     {
-        cout << "Access denied" << endl;
+        cout << "Access denied." << endl;
     }
 
     void checkAccess(const char *pw)
@@ -40,7 +42,7 @@ public:
         unsigned char hash[SHA256_DIGEST_LENGTH];
         SHA256((const unsigned char *)pw, strlen(pw), hash);
         cout << "User password hash: " << password_hash << endl;
-        cout << "checking pw: " << pw << endl;
+        cout << "Checking password: " << pw << endl;
         if (memcmp(hash, password_hash, SHA256_DIGEST_LENGTH) == 0)
         {
             this->gainAccess();
@@ -68,11 +70,9 @@ char *gets(char *str)
 
 #ifdef NO_PIE
 // Demonstrating how vptr can be overwritten when there is no PIE
-#include <iomanip>
-#include <fstream>
 void run_type()
 {
-    std::cout << "Running without PIE - overwrirte vptr throgh input" << std::endl;
+    cout << "Running without PIE - overwrite vptr through input." << endl;
 }
 
 void buffer_access()
@@ -83,7 +83,7 @@ void buffer_access()
     BaseUser *b = &base;
 
     int *p = reinterpret_cast<int *>(b); // cast to int pointer to print vptr
-    cout << "vptr: 0x" << std::hex << p[0] << endl;
+    cout << "vptr: 0x" << hex << p[0] << endl;
 
     // Write a buffer to a file to demonstrate the overflow
     ofstream outfile("pass.bin", ios::out | ios::binary);
@@ -101,62 +101,57 @@ void buffer_access()
     }
     else
     {
-        cout << "Unable to open file" << endl;
+        cout << "Unable to open file." << endl;
     }
 
     ifstream infile("pass.bin", ios::in | ios::binary);
     if (infile.is_open())
     {
-        // get the length of the file
+        // Get the length of the file
         infile.seekg(0, ios::end);
         int length = infile.tellg();
         infile.seekg(0, ios::beg);
 
-        // allocate a buffer to hold the file contents
+        // Allocate a buffer to hold the file contents
         char *buffer = new char[length];
 
-        // read the file contents into the buffer
+        // Read the file contents into the buffer
         infile.read(buffer, length);
 
-        cout << "Overflow Buffer was generated: ";
-        // print the contents of the buffer in hexadecimal format
+        cout << "Overflow buffer was generated: ";
+        // Print the contents of the buffer in hexadecimal format
         for (int i = 0; i < length; i++)
         {
-            cout << std::hex << static_cast<int>(buffer[i]) << " ";
+            cout << hex << static_cast<int>(buffer[i]) << " ";
         }
         cout << endl;
 
-        // free the buffer
+        // Free the buffer
         delete[] buffer;
 
         infile.close();
     }
     else
     {
-        cout << "Unable to open file" << endl;
+        cout << "Unable to open file." << endl;
     }
 
+    cout << "\nWarning: Passing the address through the terminal may involve unprintable characters.\n"
+         << "\tIf you haven't already piped the file \"pass.bin\",\n"
+         << "\tstart the program again with the following command:\n\n"
+         << "./overflow_demo < pass.bin" << endl;
 
-    cout << "\nWarning: Passing the address throgh the terminal may involve unprintable chars.\n"
-            << "\t If you havn't already piped the file \"pass.bin\",\n"
-            << "\t start the program again with the following command:\n\n"
-        << "./overflow_demo < pass.bin" << endl;
-    
-    cout << "\nPassord: [quit and pipe...]" << endl;
+    cout << "\nPassword: [quit and pipe...]" << endl;
     gets(pw);
     b->checkAccess(pw);
 }
 
-
 #else
 // Demonstrating direct vptr modification when PIE is enabled
-
-
 void run_type()
 {
-    std::cout << "Running with PIE - modify vptr directrly" << std::endl;
+    cout << "Running with PIE - modify vptr directly." << endl;
 }
-
 
 void vptr_access()
 {
@@ -164,21 +159,21 @@ void vptr_access()
     BaseUser base(name, "abc");
     char pw[100];
 
-    cout << "(Pass word does not matter - we will overwrite the vpt\nEnter password: ";
+    cout << "(Password does not matter - we will overwrite the vptr)\nEnter password: ";
     cin >> pw;
 
     BaseUser *b = &base;
 
-    int *p = reinterpret_cast<int *>(b); // cast to int pointer in order to overwrite the vptr
-    cout << "vptr: 0x" << std::hex << p[0] << endl;
+    int *p = reinterpret_cast<int *>(b); // cast to int pointer to overwrite the vptr
+    cout << "vptr: 0x" << hex << p[0] << endl;
 
     *p = (*p) - 8;
-    cout << "vptr now points to gainAccess: 0x" << std::hex << *p << endl;
+    cout << "vptr now points to gainAccess: 0x" << hex << *p << endl;
 
-    b->checkAccess(pw); // this will call gainAccess instead of denyAccess, because the vptr points to gainAccess
+    b->checkAccess(pw); // this will call gainAccess instead of denyAccess because the vptr points to gainAccess
 }
-#endif
 
+#endif
 
 int main()
 {
