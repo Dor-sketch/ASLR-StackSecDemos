@@ -1,20 +1,17 @@
 # Compiled binaries
 aslr_examp
 print_mem
+stack_demo
+pass.bin
 
-# Object files
+# Temporary files created by the OS or various tools
 *.o
-
-# Temporary files created by the OS or editors
 *.swp
-*.swo
 *~
-.DS_Store
 
-# Build directories or other generated directories
-build/
-dist/
-
-# IDE-specific files (e.g., for Visual Studio Code or CLion)
+# Directories created by the IDE or other tools
 .vscode/
 .idea/
+
+# Other common files to ignore
+.DS_Store

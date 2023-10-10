@@ -1,17 +1,16 @@
-# Compiled binaries
-aslr_examp
-print_mem
-stack_demo
-pass.bin
+CXX=g++
+CFLAGS=-Wall -fno-stack-protector -g -no-pie -g3 -DNO_PIE
 
-# Temporary files created by the OS or various tools
-*.o
-*.swp
-*~
+all: aslr_examp print_mem stack_demo
 
-# Directories created by the IDE or other tools
-.vscode/
-.idea/
+aslr_examp: aslr_examp.cpp
+	$(CXX) $(CFLAGS) -o aslr_examp aslr_examp.cpp
 
-# Other common files to ignore
-.DS_Store
+print_mem: print_mem.cpp
+	$(CXX) $(CFLAGS) -o print_mem print_mem.cpp
+
+stack_demo: overflow_demo.cpp
+	$(CXX) $(CFLAGS) -o stack_demo overflow_demo.cpp -lcrypto
+
+clean:
+	rm -f aslr_examp print_mem stack_demo pass.bin
