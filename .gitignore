@@ -1,0 +1,20 @@
+# Compiled binaries
+aslr_examp
+print_mem
+
+# Object files
+*.o
+
+# Temporary files created by the OS or editors
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build directories or other generated directories
+build/
+dist/
+
+# IDE-specific files (e.g., for Visual Studio Code or CLion)
+.vscode/
+.idea/
