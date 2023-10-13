@@ -1,5 +1,5 @@
 CXX=g++
-CFLAGS=-Wall -fno-stack-protector -g -no-pie -g3 -DNO_PIE
+CFLAGS=-w -fno-stack-protector -g -no-pie -g3 -DNO_PIE
 
 all: aslr_examp print_mem stack_demo
 

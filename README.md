@@ -1,10 +1,11 @@
 # Security Demonstrations
 
-This repository contains demonstrations of various security concepts, emphasizing on Address Space Layout Randomization (ASLR) and stack overflow vulnerabilities.
+This repository contains demonstrations of various security concepts, emphasizing Address Space Layout Randomization (ASLR), stack overflow, and virtual pointer (`vptr`) vulnerabilities.
 
 ## 1. ASLR Demonstration
 
 ### Overview
+
 ASLR is a computer security technique that randomizes the memory addresses used by processes, making it harder for an attacker to predict the location of specific functions or buffers they might target.
 
 ### Features
@@ -30,7 +31,12 @@ Run the ASLR demo:
 ## 2. Stack Overflow Demonstration
 
 ### Overview
-This program, named `stack_demo`, showcases a stack overflow vulnerability by manipulating the virtual pointer (`vptr`) of a class, leading to a redirection in its virtual function calls.
+
+This program, named `stack_demo`, showcases vulnerabilities associated with stack overflow and `vptr` overwrites. By manipulating the virtual pointer (`vptr`) of a class, there can be a redirection in its virtual function calls, leading to potential unauthorized access.
+
+### User Input and Overflow
+
+By default, the program demonstrates the overflow by copying from a predefined overflow buffer. However, functions are also provided for demonstrations with user input. This makes it possible to manually enter data or pipe data into the program, although the default approach is simpler for demonstration purposes.
 
 ### Compilation and Usage
 
