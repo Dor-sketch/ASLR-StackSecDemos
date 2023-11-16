@@ -2,6 +2,10 @@
 
 This repository contains demonstrations of various security concepts, emphasizing Address Space Layout Randomization (ASLR), stack overflow, and virtual pointer (`vptr`) vulnerabilities.
 
+![image](https://github.com/Dor-sketch/ASLR-StackSecDemos/assets/138825033/d02f7e41-33b0-4934-bd46-89f8adc251e5)
+
+---
+
 ## 1️⃣ ASLR Demonstration
 
 ### Overview 📝
@@ -39,7 +43,6 @@ The program `stack_demo` highlights vulnerabilities tied to stack overflow and `
 By default, the program uses a predefined buffer to demonstrate the overflow. But you also have the option to feed data manually or pipe it into the program, even though the default method is easier for demonstration purposes.
 
 ### Compilation and Usage 🛠
-
 
 To compile all the demonstrations at once, simply use:
 
