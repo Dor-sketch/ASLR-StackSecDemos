@@ -15,3 +15,7 @@ pass.bin
 
 # Other common files to ignore
 .DS_Store
+
+gui.py
+
+gui

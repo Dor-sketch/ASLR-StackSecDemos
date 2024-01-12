@@ -1,56 +1,9 @@
 // Exploiting Vulnerability using VPtr Overwrite
 // DISCLAIMER: This code is for educational purposes only.
 
-#include <openssl/sha.h>
-#include <unistd.h>
-
-#include <cstring>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-
+#include "BaseUser.h"
+#include "utils.h"
 using namespace std;
-
-const int PW_BUFFER_SIZE = 4;
-// Adjust based on system architecture if needed (e.g. 8 for 64-bit).
-const int MEM_ADDRESS_SIZE = sizeof(void *);
-
-class BaseUser {
- private:
-  char name[100];
-  unsigned char password_hash[SHA256_DIGEST_LENGTH];
-
- public:
-  BaseUser(const char *name, const char *pw) {
-    strcpy(this->name, name);
-    SHA256((const unsigned char *)pw, strlen(pw), this->password_hash);
-  }
-
-  virtual void gainAccess() { cout << "Access granted." << endl; }
-  virtual void denyAccess() { cout << "Access denied." << endl; }
-
-  void checkAccess(const char *pw) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256((const unsigned char *)pw, strlen(pw), hash);
-    if (memcmp(hash, password_hash, SHA256_DIGEST_LENGTH) == 0) {
-      gainAccess();
-    } else {
-      denyAccess();
-    }
-  }
-};
-
-// --- UNSAFE GETS REPLACEMENT ---
-char *unsafeGets(char *str) {
-  char *ret = str;
-  while (true) {
-    int c = getchar();
-    if (c == '\n' || c == EOF) break;
-    *str++ = c;
-  }
-  *str = '\0';
-  return ret;
-}
 
 #ifdef NO_PIE
 
@@ -58,13 +11,6 @@ void runWithoutPIE() {
   cout << "Running without PIE - overwrite vptr through input." << endl;
 }
 
-// Unsafe string copy that doesn't check for buffer overflows.
-void unsafeCopy(char *dest, const char *src) {
-  while (*src) {
-    *dest++ = *src++;
-  }
-  *dest = '\0';
-}
 
 void bufferAccessDemo() {
   BaseUser base("John", "abc");
@@ -114,7 +60,7 @@ void generateAndWriteOverflowToFile() {
     }
 
 		// Adjust the address based on system architecture.
-		int address =	p[0] - MEM_ADDRESS_SIZE; 
+		int address =	p[0] - MEM_ADDRESS_SIZE;
 		outfile.write(reinterpret_cast<const char *>(&address), sizeof(address));
     outfile.close();
     cout << "Overflow file 'pass.bin' created." << endl;
@@ -181,7 +127,7 @@ void vptrAccessDemo() {
   cout << "vptr: 0x" << hex << p[0] << endl;
 
   // modify vptr to gain unauthorized access.
-	*p = (*p) - MEM_ADDRESS_SIZE; 
+	*p = (*p) - MEM_ADDRESS_SIZE;
 	cout << "vptr now points to gainAccess: 0x" << hex << *p << endl;
 
   b->checkAccess(pw);
@@ -189,7 +135,7 @@ void vptrAccessDemo() {
 
 #endif
 
-int main(int argc, char *argv[]) {
+int main2(int argc, char *argv[]) {
 #ifdef NO_PIE
   runWithoutPIE();
   // Check if standard input is being redirected from a file
