@@ -13,4 +13,4 @@ stack_demo: overflow_demo.cpp
 	$(CXX) $(CFLAGS) -o stack_demo overflow_demo.cpp -lcrypto
 
 clean:
-	rm -f aslr_examp print_mem stack_demo pass.bin
+	rm -f aslr_examp print_mem stack_demo pass.bin gui

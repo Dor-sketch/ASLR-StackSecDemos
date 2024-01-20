@@ -2,6 +2,8 @@
 aslr_examp
 print_mem
 stack_demo
+int_overflow
+.clang-format
 pass.bin
 
 # Temporary files created by the OS or various tools

@@ -16,6 +16,7 @@ This repository contains demonstrations of various security concepts, emphasizin
 
 - [1️⃣ ASLR Demonstration](#1️⃣-aslr-demonstration)
 - [2️⃣ Stack Overflow Demonstration](#2️⃣-stack-overflow-demonstration)
+- [3️⃣ Integer Overflow Demonstration](#3️⃣-integer-overflow-demonstration)
 - [🗑 Cleaning Up](#-cleaning-up)
 - [🤝 Contributing](#-contributing)
 - [🙏 Acknowledgment](#-acknowledgment)
@@ -78,6 +79,31 @@ Alternatively, you can use the `Gtk` GUI to compile the programs individually. T
 ```bash
 g++ gui.cpp -o gui `pkg-config --cflags --libs gtk+-3.0` -lssl -lcrypto  -w -fno-stack-protector -g -no-pie -g3 -DNO_PIE
 ```
+
+## 3️⃣ Integer Overflow Demonstration
+
+The program `int_overflow` demonstrates the effects of integer overflow. It is compiled using the following command:
+
+```bash
+g++ int_overflow.cpp -o int_overflow
+```
+
+In C++ , when comparing an `int` to `unsigned int`, the `int` is converted to an `unsigned int`. This means that if the `int` is negative, it will be converted to a large positive number. This can lead to unexpected results, as demonstrated in the program.
+
+```cpp
+int main() {
+    int x = -1;
+    unsigned int y = 1;
+    if (x < y) {
+        std::cout << "x is less than y" << std::endl;
+    } else {
+        std::cout << "x is greater than y" << std::endl;
+    }
+    return 0;
+}
+```
+
+![Alt text](images/int.png)
 
 ## 🗑 Cleaning Up
 
